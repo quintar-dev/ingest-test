@@ -1,0 +1,15 @@
+{
+    "gameID": "0042100311",
+    "env": "dev",
+    "leagueID": "nba",
+    "shots": {
+        "apex": {
+            "3pt": 175,
+            "2pt": 150,
+            "ft": 130
+        },
+        "numPoints": 50,
+        "startHeightOffset": -50
+    },
+    "preGameID": "0042100301"
+}
