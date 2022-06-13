@@ -1,15 +1,5 @@
 {
-    "gameID": "0042100311",
-    "env": "dev",
-    "leagueID": "nba",
-    "shots": {
-        "apex": {
-            "3pt": 175,
-            "2pt": 150,
-            "ft": 130
-        },
-        "numPoints": 50,
-        "startHeightOffset": -50
-    },
-    "preGameID": "0042100301"
+    "JSON_FILE_PATH" : "https://nbadatalakedev.blob.core.windows.net/mba/sdk/phobos_slam/qrealityBasketball_test3.json"
+    "WRITE_CONNECTION_STRING = \"DefaultEndpointsProtocol=https;AccountName=nbadatalakedev;AccountKey=Gs49jwtBv2AaK6MTJnlc2iiqc1yCbZKVliwGveYkjbF+f1mjSukpnUk07RaWkCMqP4VOk5bh+bucVtMdhT3x2g==;EndpointSuffix=core.windows.net\"\n"
+   
 }
