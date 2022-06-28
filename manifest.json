@@ -1,5 +1,5 @@
 {
     "JSON_FILE_PATH" : "https://nbadatalakedev.blob.core.windows.net/mba/sdk/phobos_slam/qrealityBasketball_test3.json",
-    "WRITE_CONNECTION_STRING : "DefaultEndpointsProtocol=https;AccountName=nbadatalakedev;AccountKey=Gs49jwtBv2AaK6MTJnlc2iiqc1yCbZKVliwGveYkjbF+f1mjSukpnUk07RaWkCMqP4VOk5bh+bucVtMdhT3x2g==;EndpointSuffix=core.windows.net"
+    "WRITE_CONNECTION_STRING" : "DefaultEndpointsProtocol=https;AccountName=nbadatalakedev;AccountKey=Gs49jwtBv2AaK6MTJnlc2iiqc1yCbZKVliwGveYkjbF+f1mjSukpnUk07RaWkCMqP4VOk5bh+bucVtMdhT3x2g==;EndpointSuffix=core.windows.net"
    
 }
