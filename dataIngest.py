@@ -29,37 +29,48 @@ Log_Format = "%(levelname)s %(asctime)s - %(message)s"
 logging.basicConfig(stream = sys.stdout, format = Log_Format, level = "INFO")
 logger = logging.getLogger()
 
+DEV_CONNECTION = "DefaultEndpointsProtocol=https;AccountName=nbadatalakedev;AccountKey=Gs49jwtBv2AaK6MTJnlc2iiqc1yCbZKVliwGveYkjbF+f1mjSukpnUk07RaWkCMqP4VOk5bh+bucVtMdhT3x2g==;EndpointSuffix=core.windows.net"
+STAG_CONNECTION = "DefaultEndpointsProtocol=https;AccountName=nbadatalakestag;AccountKey=W6zvjH5eVmnMEZnGy8DvY3G24TvdeB+mBXZ8hguUjSTkPKuxNfLE/BvJdgKo54kbhIZSOkQaolIX+AStoshxaA==;EndpointSuffix=core.windows.net"
+PROD_CONNECTION = "DefaultEndpointsProtocol=https;AccountName=nbadatalakeprod;AccountKey=bdrJN2qPorn3BLaog07RQM++Gxw46ZZc9SzGSMc5QYSpxYvJ4v3HpBS5OhT2OWYtpoK5Bs12Q3iL+AStggiIbA==;EndpointSuffix=core.windows.net"
 
-def getParams():
-    with open("manifest.json", "r") as f:
-        data = json.load(f)
+CONTAINER_NAME = "nba"
+JSON_FILE_PATH = "nba_sdk/nbaIngestParams.json"
+LOG_PATH = "sport-data/games/"
+
+
+def getParams():    
+    blob_service_client = BlobServiceClient.from_connection_string(DEV_CONNECTION)
+    container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+    file_client = container_client.get_blob_client(JSON_FILE_PATH)
+    streamdownloader = file_client.download_blob()
+    ingestParams = json.loads(streamdownloader.readall())
     
-    blob_service_client = BlobServiceClient.from_connection_string(data["CONFIG_CONNECTION_STRING"])
-    container_client = blob_service_client.get_container_client(data['CONFIG_JSON_CONTAINER_NAME'])
-    blob_client = container_client.get_blob_client(data["JSON_FILE_PATH"])
-    streamdownloader = blob_client.download_blob()
-    jsonData = json.loads(streamdownloader.readall())
-    sportData = jsonData['sportData']
+    if ingestParams["ENVIRONMENT"].lower() == "dev":
+        CONNECTION_STRING = DEV_CONNECTION
+    elif ingestParams["ENVIRONMENT"].lower() == "stag":
+        CONNECTION_STRING = STAG_CONNECTION
+    elif ingestParams["ENVIRONMENT"].lower() == "prod":
+        CONNECTION_STRING = PROD_CONNECTION
     
-    params = {"WRITE_CONNECTION_STRING" : data["WRITE_CONNECTION_STRING"],
-              "LIVE_SIMULATOR" : data["LIVE_SIMULATOR"],
-              "SIM_PARAMS" : data["SIM_PARAMS"],
-              "LOG_LEVEL" : data["LOG_LEVEL"],
-              "LEAGUE_ID" : sportData['lid'],
-              "GAME_ID" : sportData['gid'],
-              "SHOT_TRAIL_PARAMS" : sportData['shotTrails'],
-              "PRE_GAME_ID" : sportData['preGID']}
+    params = {"WRITE_CONNECTION_STRING" : CONNECTION_STRING,
+              "MODE" : ingestParams["MODE"],
+              "SIM_PARAMS" : ingestParams["SIM_PARAMS"],
+              "LOG_LEVEL" : ingestParams["LOG_LEVEL"],
+              "LEAGUE_ID" : ingestParams['LEAGUE_ID'],
+              "GAME_ID" : ingestParams['GAME_ID'],
+              "SHOT_TRAIL_PARAMS" : ingestParams['SHOT_TRAIL_PARAMS'],
+              "SIMULATION_GAME_ID" : ingestParams['SIMULATION_GAME_ID']}
 
     return params
 
-
 class liveInfo:
-    def __init__(self, gameID, quarter, leagueID):
+    def __init__(self, gameID, quarter, leagueID, MODE):
         self.gameID = gameID
         urlInfo = str(str(self.gameID) + "_" + str(quarter))
         self.url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/2021/scores/pbp/" + urlInfo + "_pbp.json"
         # self.url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2021/scores/pbp/0022101103_1_pbp.json"
         logging.info(self.url)
+        self.MODE = MODE
         while True:
             try:
                 c = urlopen(self.url)
@@ -80,9 +91,15 @@ class liveInfo:
             else:
                 newData = []
             if newData != []:
+                if self.MODE == 2:
+                    newData = [newData[0]]
+                    newEvt = newData[0]["evt"]
+                    logging.info(f'EVENT NEXT : {newEvt}')
                 break
             else:
                 logging.info("WAITING FOR NEW DATA")
+                logging.info(f'EVENT ID : {evtID}')
+                
 
         numEvts = len(newData)
 
@@ -100,14 +117,12 @@ class liveInfo:
                 relData = {"gid": self.gameID, "eid": evtID, "pe": period, "tid": event["tid"], "pid": event["pid"],
                            "epid": event["epid"], "opid": event["opid"], "tr": event["cl"], "x": event["locX"],
                            "y": event["locY"], "de": de}
-                # logging.info("RELDATAT")
-                # logging.info(relData)
+                logging.debug(f'RELDATAT : {relData}')
                 self.events.append(relData)
                 if de == "end period":
                     break
-            # logging.info(self.events)
+            logging.debug(self.events)
         return evtID, period, de.lower()
-
 
 class shotInfo:  ## Get SHOTS, SCORING
     def __init__(self, game_ID, hTeam, shotTrailParams):
@@ -304,22 +319,40 @@ class shotInfo:  ## Get SHOTS, SCORING
 
         return homePlayerDict, visitorPlayerDict
 
-
 class dataOutput:
-    def __init__(self):
+    def __init__(self, GAME_ID):
         logging.info("Data Writing!")
+        self.logChronicles = str(GAME_ID) + "_gameData_formatted.json" 
+        self.sqShots = []
+        self.sqLeaders = []
+    
+    def log2File(self):
+        logging.info(f'Writing to {self.logChronicles}')
+        gameData = {"shots" : self.sqShots, "gameLeaders" : self.sqLeaders}
+        with open(self.logChronicles, 'w') as logChronicles:
+            json.dump(gameData, logChronicles)
+        
+        blob_service_client = BlobServiceClient.from_connection_string(DEV_CONNECTION)
+        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+        UPLOAD_FILE_PATH = LOG_PATH + self.logChronicles
+        file_client = container_client.get_blob_client(UPLOAD_FILE_PATH)
+        file_client.upload_blob(json.dumps(gameData))
+        
+                
         
     def writeTable(self, gameData, connection_string, gameID):
         shots = gameData["shots"]
         leaders = gameData["leaderboard"]
-        #logging.info(gameData)
+        logging.debug(gameData)
         operations = []
         for shot in shots:
-            #logging.info(shot)
+            logging.debug(shot)
             shot['PartitionKey'] = str(gameID)
             shot['RowKey'] = str(shot['eid'])
             shot['trace'] = "".join(str(shot['trace']))
             operations.append(("upsert", shot))
+            self.sqShots.append(shot)
+            EID =  shot['eid']
 
         with TableClient.from_connection_string(connection_string, table_name="GameChronicle") as table:
             try:
@@ -328,8 +361,6 @@ class dataOutput:
                     for i in range(0, len(operations), 100):
                         operation = list(operations[i:i + 100])
                         lastTask = operation[-1]
-                        # logging.info(f'LAST TASK = {lastTask}')
-                        # logging.info(operations[99])
                         table.submit_transaction(operation)
                     logging.info("SUBMIT TRANSACTION PASSED")
                 except Exception as e:
@@ -345,15 +376,17 @@ class dataOutput:
         for team in leaders:
             if team:
                 for leader in team['teamLeaders']:
-                    logging.info(leader)
+                    logging.debug(f'LEADERS : {leader}')
                     leader['PartitionKey'] = str(gameID)
                     leader['RowKey'] = str(team['tid']) + '_' + leader['cat']  # + '_' + str(eid)
+                    leader['eid'] = EID
+                    self.sqLeaders.append(leader)
                     if leader:
                         with TableClient.from_connection_string(connection_string, table_name="LeaderBoard") as table:
                             try:
                                 # add new entity if it does not exist. update if the entity exists
                                 createdEntity = table.upsert_entity(mode=UpdateMode.MERGE, entity=leader)
-                                # logging.info(createdEntity)
+                                logging.debug(createdEntity)
                                 # Return http response
                                 updateStatus = 1
                             except HttpResponseError:
@@ -361,6 +394,7 @@ class dataOutput:
                                 return ("Failed to add/update game leaders")
                     else:
                         return ("Failed to add/update game leaders")
+            
         return len(shots)
 
 
@@ -380,19 +414,141 @@ class dataOutput:
         logging.info(" [x] Sent %r" % message)
         connection.close()
 
+class simMethods:
+    def __init__(self, GAME_ID, SIM_PARAMS, WRITE_CONNECTION_STRING):
+        logging.info("RUNNING IN SIMULATOR MODE")
+        logging.info(f'SIMULATING GAME: {GAME_ID}')
+        
+        self.connection_string = WRITE_CONNECTION_STRING
+        self.scaleFactor = SIM_PARAMS["SPEED"]
+        self.delTime = SIM_PARAMS["DELAY"]
+        
+        ARCHIVED_FILE = LOG_PATH + GAME_ID + "_gameData_formatted.json"
+         
+        blob_service_client = BlobServiceClient.from_connection_string(DEV_CONNECTION)
+        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+        file_client = container_client.get_blob_client(ARCHIVED_FILE)
+        streamdownloader = file_client.download_blob()
+        gameData = json.loads(streamdownloader.readall())
+        shots = gameData["shots"]
+        gameLeaders = gameData["gameLeaders"]
+        
+        self.shotsDF = pd.DataFrame.from_dict(shots)
+        self.leadersDF = pd.DataFrame.from_dict(gameLeaders)
+        self.shotsDF.PartitionKey = "9876543210"
+        self.leadersDF.PartitionKey = "9876543210"
+        lastEvent = int(self.shotsDF["eid"].iloc[-1])
+        
+        
+        logging.debug(f'SHOTS : {self.shotsDF}')
+        logging.debug(f'GAME LEADERS : {self.leadersDF}')
+        logging.info(f"LAST EVENT =  {lastEvent}")
+            
+    
+    def getDeltas(self):
+        timeRemaining = []
+        prevTime = 2880
+        prevQ = 1
+        for pos in range(0, len(self.shotsDF)):
+            row = self.shotsDF.iloc[pos]
+            ts = row["tr"]
+            pe = row["pe"]
+            mins = (int(ts.split(':')[0]) * 60)
+            secs = (float(ts.split(':')[1]))
+            timeSecs = mins + secs + ((4 - pe) * (12 * 60))
+            if prevQ != pe:
+                timeSecs += 120.0
+            timeDiff = abs(prevTime - timeSecs)
+            if timeDiff < 0:
+                logging.info("NEGATIVE TIME DIFF")
+                logging.info(pe)
+                logging.info(ts)
+                logging.info(prevTime)
+                logging.info(timeSecs)
+                
+            timeRemaining.append(timeDiff)
+            prevQ = pe
+            prevTime = timeSecs
+        self.timeDiffs = timeRemaining
+        self.timeDF = pd.DataFrame(timeRemaining, columns=['tr'])
+    
+    def createTable(self):
+        with TableClient.from_connection_string(self.connection_string, table_name="simGameChronicle") as table:
+            table.create_table()
+        with TableClient.from_connection_string(self.connection_string, table_name="simLeaderBoard") as table:
+            table.create_table()       
+    
+    def eraseTable(self):
+        with TableClient.from_connection_string(self.connection_string, table_name="simGameChronicle") as table:
+            table.delete_table()
+        with TableClient.from_connection_string(self.connection_string, table_name="simLeaderBoard") as table:
+            table.delete_table()
+    
+    def streamlineData(self):
+        self.getDeltas()
+        shots = self.shotsDF.to_dict("records")
+        self.eraseTable()
+        time.sleep(30)
+        self.createTable()   
+        
+        for pos in range(0, len(self.shotsDF)):
+            gameData = shots[pos]
+            self.writeTable(gameData=gameData)
+            timeDelta = self.timeDF.iloc[pos]["tr"] / self.scaleFactor
+            logging.debug(f'TIME DELTA : {timeDelta}')
+            time.sleep(timeDelta)
+
+        time.sleep(self.delTime)
+        self.eraseTable()
+
+    
+    def writeTable(self, gameData):
+        shot = gameData
+        shotOperation = [("upsert", shot)]
+        gameID = "9876543210"
+        shot['PartitionKey'] = gameID
+        shot['RowKey'] = str(shot['eid'])
+        shot['trace'] = "".join(str(shot['trace']))
+        shot['gid'] = gameID
+
+        with TableClient.from_connection_string(self.connection_string, table_name="simGameChronicle") as gcTable:
+            logging.info("WRITING TO TABLE")
+            try:
+                gcTable.submit_transaction(shotOperation)
+                logging.info("SUBMIT TRANSACTION PASSED")
+            except Exception as e:
+                logging.info("SUBMIT TRANSACTION FAILED")
+                logging.info(f"EXCEPTION : {e}")
+        
+        logging.info(shotOperation)
+        
+        currentLeaders = self.leadersDF[self.leadersDF["eid"] == shot["eid"]]
+        logging.info(currentLeaders)
+        leaderOperation = []
+        for leader in currentLeaders.to_dict("records"):
+            leaderOperation.append(("upsert", leader))
+        logging.info(leaderOperation)
+        with TableClient.from_connection_string(self.connection_string, table_name="simLeaderBoard") as lbTable:
+            logging.info("CURRENT LEADERS")
+            logging.info(currentLeaders)
+            try:
+                lbTable.submit_transaction(leaderOperation)
+            except Exception as e:
+                logging.info(f"ERROR : {e}")
+    
 
 def main():
     logging.info('######################################################################################')
     logging.info('NBA DATA INGEST PIPELINE INITIATED!!!')
     params = getParams()
     logging.info(f'USING PARAMETERS : {params}')
-    WRITE_CONNECTION_STRING = params["WRITE_CONNECTION_STRING"]
+    WRITE_CONNECTION_STRING = params['WRITE_CONNECTION_STRING']
     leagueID = params['LEAGUE_ID']
     gameID = params['GAME_ID']
     evtID = 0
-    opObj = dataOutput()
+    opObj = dataOutput(gameID)
 
-    if params['LIVE_SIMULATOR'] == 0:
+    if params["MODE"] == 0 or params["MODE"] == 2: # LIVE MODE OR ARCHIVAL MODE FOR OLD GAMES
         logging.info("RUNNING IN LIVE MODE!!")
         with TableClient.from_connection_string(WRITE_CONNECTION_STRING, table_name="Game") as table:
             try:
@@ -433,7 +589,6 @@ def main():
             blocks = {tids[0]: {}, tids[1]: {}}
             rebounds = {tids[0]: {}, tids[1]: {}}
             steals = {tids[0]: {}, tids[1]: {}}
-            logging.info("INIT SHOT_INFO CLASS????")
             logging.info(f'GAME ID : {gameID}')
             shotInfoObj = shotInfo(gameID, hTeam, params['SHOT_TRAIL_PARAMS'])
             quarter = 1
@@ -447,15 +602,14 @@ def main():
         for i in range(0, 2160):
             try:
                 gameStatus = "GAMEON = " + str(gameOn)
-                liObj = liveInfo(gameID, quarter, leagueID)
+                liObj = liveInfo(gameID, quarter, leagueID, params["MODE"])
                 evtID, period, de = liObj.getData(evtID, de)
                 logging.info(f"DESCRIPTION : {de}")
                 nxtUrl = liObj.nextURL
 
                 shots, points, assists, blocks, rebounds, steals = shotInfoObj.getEvtData(tids, liObj.events, shots,
                                                                                           points, assists, blocks,
-                                                                                          rebounds, steals,
-                                                                                          leagueID)
+                                                                                          rebounds, steals, leagueID)
                 leaders = shotInfoObj.leaderBoard(tids, points, assists, blocks, rebounds, steals, leagueID)
                 printStr = "DESCRIPTION : " + de.lower()
                 evtIDstr = "EVENT ID = " + str(evtID)
@@ -468,7 +622,7 @@ def main():
                     logging.info("WRITING NOW!!!!!!")
                     # pub2Queue(json_data, gameID)
                     evtCount += opObj.writeTable(json_data, WRITE_CONNECTION_STRING, gameID)
-                logging.info(gameStatus)
+                    logging.info(gameStatus)
                 if (de.lower() == "end period" and period != 4):
                     logging.info("CHANGE PERIOD")
                     quarter += 1
@@ -480,8 +634,14 @@ def main():
                 time.sleep(1)
             except:
                 time.sleep(5)
+    
+        opObj.log2File()
 
         return f'Game Chronicles Data uploaded. No. of Events = {evtCount}'
+    
+    elif params["MODE"] == 1: # SIMULATOR MODE
+        simObj = simMethods(params["SIMULATION_GAME_ID"], params["SIM_PARAMS"], WRITE_CONNECTION_STRING)
+        simObj.streamlineData()
 
 
 if __name__ == "__main__":
