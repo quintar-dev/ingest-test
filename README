@@ -1,0 +1,30 @@
+NBA DATA INGEST
+
+CONFIG FILE: https://nbadatalakedev.blob.core.windows.net/nba/nba_sdk/nbaIngestParams.json
+
+CONFIG PARAMETERS:
+1. LEAGUE_ID: 
+    a. Regular League: "nba"
+    b. Summer League: "vegas"
+2. GAME_ID: 10-digit game ID set as string
+3. ENVIRONMENT: 
+    a. Development: "dev"
+    b. Staging: "stag"
+    c. Production: "prod"
+4. SIMULATION_GAME_ID: Pick a game ID for simulation from the games with logs available in https://nbadatalakedev.blob.core.windows.net/nba/sport-data/games/
+5. SHOT_TRAIL_PARAMS: (FOR LIVE GAME ONLY)
+6. SIM_PARAMS:
+    a. speed: Speed of simulation
+    b. delay: Time after simulation after which the simulation tables are deleted
+7. MODE:
+    a. 0: Live game data ingest
+    b. 1: Simulate a game with available logs
+    c. 2: generate logs for old games
+
+
+Usage:
+    1. Create a docker using the given docker file (or a virtual environment)
+    2. Update config parameters
+    3. RUN: python dataIngest.py
+
+NOTE: When running in Simulator mode, setup time is about 30secs
