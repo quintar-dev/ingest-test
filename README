@@ -14,8 +14,11 @@ CONFIG PARAMETERS:
 4. SIMULATION_GAME_ID: Pick a game ID for simulation from the games with logs available in https://nbadatalakedev.blob.core.windows.net/nba/sport-data/games/valid_gameIDs.txt
 5. SHOT_TRAIL_PARAMS: (FOR LIVE GAME ONLY)
 6. SIM_PARAMS:
-    a. speed: Speed of simulation
-    b. delay: Time after simulation after which the simulation tables are deleted
+    a. speed: Speed of simulation (scaling factor)
+        1: run at normal speed
+        2: run at twice the speed
+        n: run at n-times the speed
+    b. delay: Time after simulation after which the simulation tables are deleted (in seconds)
 7. MODE:
     a. 0: Live game data ingest
     b. 1: Simulate a game with available logs
