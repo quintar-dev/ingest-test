@@ -57,6 +57,7 @@ def getParams():
               "SIM_PARAMS" : ingestParams["SIM_PARAMS"],
               "LOG_LEVEL" : ingestParams["LOG_LEVEL"],
               "LEAGUE_ID" : ingestParams['LEAGUE_ID'],
+              "SEASON" : ingestParams["SEASON"],
               "GAME_ID" : ingestParams['GAME_ID'],
               "SHOT_TRAIL_PARAMS" : ingestParams['SHOT_TRAIL_PARAMS'],
               "SIMULATION_GAME_ID" : ingestParams['SIMULATION_GAME_ID']}
@@ -64,18 +65,18 @@ def getParams():
     return params
 
 class liveInfo:
-    def __init__(self, gameID, quarter, leagueID, MODE):
+    def __init__(self, gameID, quarter, leagueID, MODE, season):
         self.gameID = gameID
         urlInfo = str(str(self.gameID) + "_" + str(quarter))
-        self.url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/2021/scores/pbp/" + urlInfo + "_pbp.json"
-        # self.url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2021/scores/pbp/0022101103_1_pbp.json"
+        self.url = "http://data.nba.com/data/5s/v2015/json/mobile_teams/" + leagueID + "/" + season + "/scores/pbp/" + urlInfo + "_pbp.json"
+
         logging.info(self.url)
         self.MODE = MODE
         while True:
             try:
                 c = urlopen(self.url)
                 break
-            except:
+            except Exception as e:
                 logging.info("WAITING FOR QUARTER TO START")
                 time.sleep(120)
                 # continue
@@ -95,6 +96,7 @@ class liveInfo:
                     newData = [newData[0]]
                     newEvt = newData[0]["evt"]
                     logging.info(f'EVENT NEXT : {newEvt}')
+                    logging.info(f"NEW DATA: {newEvt}")
                 break
             else:
                 logging.info("WAITING FOR NEW DATA")
@@ -159,121 +161,134 @@ class shotInfo:  ## Get SHOTS, SCORING
             self.z_pts[i] += hDiff
             self.z_pts[i] = round(self.z_pts[i], 2)
 
-    def getTrace(self, pid, leagueID):
-        pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/2021/players/playercard_" + str(
-            pid) + "_02.json"
-        response = urlopen(pc_url)
-        playerData = json.loads(response.read())
+    def getTrace(self, pid, leagueID, season):
+        try:
+            pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/" + season + "/players/playercard_" + str(pid) + "_02.json"
+            logging.info(pc_url)
+            response = urlopen(pc_url)
+            playerData = json.loads(response.read())
         
-        offset = self.shotTrailParams['startHeightOffset']
-        height = (int(playerData["pl"]["ht"].split("-")[0]) * 10) + math.floor(
-            (float(playerData["pl"]["ht"].split("-")[1]) / 12) * 10) + offset
+            offset = self.shotTrailParams['startHeightOffset']
+            height = (int(playerData["pl"]["ht"].split("-")[0]) * 10) + math.floor(
+                (float(playerData["pl"]["ht"].split("-")[1]) / 12) * 10) + offset
 
-        if self.st == "ft":
-            p1 = (0, self.pen, height)
-        else:
-            p1 = (self.x, self.y, height)
-        p2 = (self.p[0], self.p[1], 100)
-        dist_points = (p1[0], p1[1])
-        origin = (self.p[0], self.p[1])
-
-        num_points = self.shotTrailParams['numPoints']
-
-        self.x_pts = []
-        self.y_pts = []
-        self.z_pts = []
-
-        t = 0.0;
-        delta_t = float(1.0) / float(num_points)
-
-        for ipoint in range(0, num_points + 1):
-            x = self.p[0]
-            y = self.p[1] - 430.0
-            z = 100
-            xi = round((x + (t * float(p1[0]))), 2)
-            yi = round((y + (t * float(p1[1]))), 2)
-            zi = 0.0
-            self.x_pts.append(xi)
-            self.y_pts.append(yi)
-            self.z_pts.append(zi)
-            t += delta_t
-        self.z_pts[-1] = float(p1[2])
-        self.x_pts.reverse()
-        self.y_pts.reverse()
-        self.z_pts.reverse()
-        if self.st == "ft":
-            maxH = self.shotTrailParams['apex_ft']
-        elif self.st == "fg":
-            maxH = self.shotTrailParams['apex_2pt']
-        elif self.st == "3pt":
-            maxH = self.shotTrailParams['apex_3pt']
-        self.heights(maxH)
-        ynp = np.array(self.y_pts)
-        xnp = np.array(self.x_pts)
-        if self.tName == self.hTeam.lower():  # 'mia':
-            ynp = np.multiply(ynp, -1.0)
-            xnp = np.multiply(xnp, -1.0)
-        self.x_pts = xnp.tolist()
-        self.y_pts = ynp.tolist()
-        combList = self.y_pts + self.x_pts + self.z_pts
-        combList = np.divide(combList, 10.0)
-        combList = np.around(combList, 3)
-        self.trace = combList.tolist()
-        self.xy_pts = [self.y_pts[0], self.x_pts[0]]
-
-    def getEvtData(self, tids, qData, shots, points, assists, blocks, rebounds, steals, leagueID):
-        shots = []
-        self.qData = qData
-        for evt in self.qData:
-            if evt["tid"] == tids[0]:
-                tid = tids[1]
+            if self.st == "ft":
+                p1 = (0, self.pen, height)
             else:
-                tid = tids[0]
-            if ("shot:" in evt["de"]) or ("free throw" in evt["de"]):
-                if "missed" in evt["de"]:
-                    ma = 0
-                else:
-                    ma = 1
-                if "3pt" in evt["de"]:
-                    self.st = "3pt"
-                elif "free throw" in evt["de"]:
-                    self.st = "ft"
-                else:
-                    self.st = "fg"
+                p1 = (self.x, self.y, height)
+            p2 = (self.p[0], self.p[1], 100)
+            dist_points = (p1[0], p1[1])
+            origin = (self.p[0], self.p[1])
 
-                self.x = float(evt['x'])
-                self.y = float(evt['y'])
-                self.tName = evt["de"].split('[')[1][0:3]
-                self.p = [0.0, 12.5]
-                self.pen = 150.0
+            num_points = self.shotTrailParams['numPoints']
 
-                self.getTrace(evt["pid"], leagueID)
-                event = {"gid": self.game_ID, "eid": evt["eid"], "pe": evt["pe"], "tid": evt["tid"], "pid": evt["pid"],
-                         "tr": evt["tr"], "ma": ma, "st": self.st, "x": self.xy_pts[0], "y": self.xy_pts[1],
-                         "trace": self.trace}
-                if ma == 1:
-                    point = int((evt["de"].split("(")[1]).split(" ")[0])
-                    points[evt["tid"]][evt["pid"]] = point
-                    if "assist" in evt["de"]:
-                        assist = int((((evt["de"].split("assist:")[1]).split("("))[1]).replace(" ast)", ""))
-                        assists[evt["tid"]][int(evt["epid"])] = assist
-                shots.append(event)
-            if "rebound" in evt["de"]:
-                #logging.info(evt["de"])
-                #logging.info(evt["pid"])
-                if evt["pid"] in rebounds[evt["tid"]]:
-                    rebounds[evt["tid"]][evt["pid"]] += 1
+            self.x_pts = []
+            self.y_pts = []
+            self.z_pts = []
+
+            t = 0.0;
+            delta_t = float(1.0) / float(num_points)
+
+            for ipoint in range(0, num_points + 1):
+                x = self.p[0]
+                y = self.p[1] - 430.0
+                z = 100
+                xi = round((x + (t * float(p1[0]))), 2)
+                yi = round((y + (t * float(p1[1]))), 2)
+                zi = 0.0
+                self.x_pts.append(xi)
+                self.y_pts.append(yi)
+                self.z_pts.append(zi)
+                t += delta_t
+            self.z_pts[-1] = float(p1[2])
+            self.x_pts.reverse()
+            self.y_pts.reverse()
+            self.z_pts.reverse()
+            if self.st == "ft":
+                maxH = self.shotTrailParams['apex_ft']
+            elif self.st == "fg":
+                maxH = self.shotTrailParams['apex_2pt']
+            elif self.st == "3pt":
+                maxH = self.shotTrailParams['apex_3pt']
+            self.heights(maxH)
+            ynp = np.array(self.y_pts)
+            xnp = np.array(self.x_pts)
+            if self.tName == self.hTeam.lower():  # 'mia':
+                ynp = np.multiply(ynp, -1.0)
+                xnp = np.multiply(xnp, -1.0)
+            self.x_pts = xnp.tolist()
+            self.y_pts = ynp.tolist()
+            combList = self.y_pts + self.x_pts + self.z_pts
+            combList = np.divide(combList, 10.0)
+            combList = np.around(combList, 3)
+            self.trace = combList.tolist()
+            self.xy_pts = [self.y_pts[0], self.x_pts[0]]
+        except Exception as e:
+            logging.error(f"GET TRACE METHOD EXCEPTION : {e}")
+            #sys.exit(0)
+
+    def getEvtData(self, tids, qData, shots, points, assists, blocks, rebounds, steals, leagueID, season):
+        try:
+            shots = []
+            self.qData = qData
+            for evt in self.qData:
+                if evt["tid"] == tids[0]:
+                    tid = tids[1]
                 else:
-                    rebounds[evt["tid"]][evt["pid"]] = 1
-            if "block" in evt["de"]:
-                block = int((evt["de"].split("(")[1]).split(" ")[0])
-                blocks[tid][evt["opid"]] = block
-            if "steal" in evt["de"]:
-                steal = int((evt["de"].split("(")[1]).split(" ")[0])
-                steals[tid][evt["opid"]] = steal
-        return shots, points, assists, blocks, rebounds, steals
+                    tid = tids[0]
+                if ("shot:" in evt["de"]) or ("free throw" in evt["de"]):
+                    if "missed" in evt["de"]:
+                        ma = 0
+                    else:
+                        ma = 1
+                    if "3pt" in evt["de"]:
+                        self.st = "3pt"
+                    elif "free throw" in evt["de"]:
+                        self.st = "ft"
+                    else:
+                        self.st = "fg"
 
-    def leaderBoard(self, tids, points, assists, blocks, rebounds, steals, leagueID):
+                    self.x = float(evt['x'])
+                    self.y = float(evt['y'])
+                    self.tName = evt["de"].split('[')[1][0:3]
+                    self.p = [0.0, 12.5]
+                    self.pen = 150.0
+
+                    self.getTrace(evt["pid"], leagueID, season)
+                    event = {"gid": self.game_ID, "eid": evt["eid"], "pe": evt["pe"], "tid": evt["tid"], "pid": evt["pid"],
+                             "tr": evt["tr"], "ma": ma, "st": self.st, "x": self.xy_pts[0], "y": self.xy_pts[1],
+                             "trace": self.trace}
+                    if ma == 1:
+                        point = int((evt["de"].split("(")[1]).split(" ")[0])
+                        points[evt["tid"]][evt["pid"]] = point
+                        if "assist" in evt["de"]:
+                            assist = int((((evt["de"].split("assist:")[1]).split("("))[1]).replace(" ast)", ""))
+                            assists[evt["tid"]][int(evt["epid"])] = assist
+                    shots.append(event)
+                if "rebound" in evt["de"]:
+                    #logging.info(evt["de"])
+                    #logging.info(evt["pid"])
+                    if evt["pid"] in rebounds[evt["tid"]]:
+                        rebounds[evt["tid"]][evt["pid"]] += 1
+                    else:
+                        rebounds[evt["tid"]][evt["pid"]] = 1
+                if "block" in evt["de"]:
+                    block = int((evt["de"].split("(")[1]).split(" ")[0])
+                    blocks[tid][evt["opid"]] = block
+                if "steal" in evt["de"]:
+                    steal = int((evt["de"].split("(")[1]).split(" ")[0])
+                    steals[tid][evt["opid"]] = steal
+            logging.info(f"SHOTS : {shots}")
+            logging.info(f"Points : {points}")
+            logging.info(f"Assists : {assists}")
+            logging.info(f"Blocks : {blocks}")
+            logging.info(f"Rebounds : {rebounds}")
+            logging.info(f"Steals : {steals}")
+            return shots, points, assists, blocks, rebounds, steals
+        except Exception as e:
+            logging.error(f"GET EVENT METHOD EXCEPTION : {e}")
+
+    def leaderBoard(self, tids, points, assists, blocks, rebounds, steals, leagueID, season):
         leaderboardData = []
         cats = ["PTS", "AST", "BLK", "REB", "STL"]
         for tid in tids:
@@ -289,9 +304,8 @@ class shotInfo:  ## Get SHOTS, SCORING
                     pid = max(inArr[i], key=inArr[i].get)
                     scr = int(inArr[i][max(inArr[i], key=inArr[i].get)])
                     pidStr = str(pid)
-                    pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/2021/players/playercard_" + pidStr + "_02.json"
+                    pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/" + season +"/players/playercard_" + pidStr + "_02.json"
                     # logging.info(pc_url)
-                    # pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2021/players/playercard_1628378_02.json"
                     response = urlopen(pc_url)
                     playerData = json.loads(response.read())
                     # playerData = {"pl": {"ln": "Parsons", "fn": "Jim"}}
@@ -307,8 +321,8 @@ class shotInfo:  ## Get SHOTS, SCORING
             leaderboardData.append({"tid": tid, "teamLeaders": teamLeaders})
         return leaderboardData
 
-    def getPlayerName(leagueID, gameID):
-        pc_url = "http://data.nba.com/data/5s/v2015/json/mobile_teams/" + leagueID.lower() + "/2021/scores/gamedetail/" + gameID + ".json"
+    def getPlayerName(leagueID, gameID, season):
+        pc_url = "http://data.nba.com/data/5s/v2015/json/mobile_teams/" + leagueID.lower() + "/" + season + "/scores/gamedetail/" + gameID + ".json"
         response = urlopen(pc_url)
         playerNames = json.loads(response.read())
         visitorPlayerDict = {}
@@ -327,17 +341,19 @@ class dataOutput:
         self.sqLeaders = []
     
     def log2File(self):
-        logging.info(f'Writing to {self.logChronicles}')
-        gameData = {"shots" : self.sqShots, "gameLeaders" : self.sqLeaders}
-        with open(self.logChronicles, 'w') as logChronicles:
-            json.dump(gameData, logChronicles)
+        try:
+            logging.info(f'Writing to {self.logChronicles}')
+            gameData = {"shots" : self.sqShots, "gameLeaders" : self.sqLeaders}
+            with open(self.logChronicles, 'w') as logChronicles:
+                json.dump(gameData, logChronicles)
         
-        blob_service_client = BlobServiceClient.from_connection_string(DEV_CONNECTION)
-        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
-        UPLOAD_FILE_PATH = LOG_PATH + self.logChronicles
-        file_client = container_client.get_blob_client(UPLOAD_FILE_PATH)
-        file_client.upload_blob(json.dumps(gameData))
-        
+            blob_service_client = BlobServiceClient.from_connection_string(DEV_CONNECTION)
+            container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+            UPLOAD_FILE_PATH = LOG_PATH + self.logChronicles
+            file_client = container_client.get_blob_client(UPLOAD_FILE_PATH)
+            file_client.upload_blob(json.dumps(gameData))
+        except Exception as e:
+            logging.error(f"EXCEPTION IN LOG2FILE: {e}")
                 
         
     def writeTable(self, gameData, connection_string, gameID):
@@ -400,19 +416,23 @@ class dataOutput:
 
 
     def pub2Queue(self, jsonData, gameID):
-        credentials = pika.PlainCredentials('quintar', 'quintar123')
-        parameters = pika.ConnectionParameters('20.231.253.196', 5672, '/', credentials)
-        parameters = pika.ConnectionParameters('20.232.3.112', 5672, '/', credentials)
-        connection = pika.BlockingConnection(parameters)
-        channel = connection.channel()
+        try:
+            credentials = pika.PlainCredentials('quintar', 'quintar123')
+            #parameters = pika.ConnectionParameters('20.231.253.196', 5672, '/', credentials)
+            parameters = pika.ConnectionParameters('20.121.92.76', 5672, '/', credentials)
+            connection = pika.BlockingConnection(parameters)
+            channel = connection.channel()
 
-        channel.exchange_declare(exchange='tq6_exchange', exchange_type='fanout')
-        channel.queue_declare(queue='testq6', arguments={'x-message-ttl' : 30000})
-        message = json.dumps(jsonData)
+            channel.exchange_declare(exchange='tq6_exchange', exchange_type='fanout')
+            channel.queue_declare(queue='rabbit_test', arguments={'x-message-ttl' : 30000})
+            message = json.dumps(jsonData)
 
-        channel.basic_publish(exchange='tq6_exchange', routing_key=str(gameID), body=message)
-        logging.info(" [x] Sent %r" % message)
-        connection.close()
+            channel.basic_publish(exchange='tq6_exchange', routing_key=str(gameID), body=message)
+            logging.info(" [x] Sent %r" % message)
+            connection.close()
+        except Exception as e:
+            logging.error(f"EXCEPTION IN PUBLISH : {e}")
+            
 
 class simMethods:
     def __init__(self, GAME_ID, SIM_PARAMS, WRITE_CONNECTION_STRING):
@@ -498,6 +518,7 @@ class simMethods:
             logging.debug(f'TIME DELTA : {timeDelta}')
             time.sleep(timeDelta)
 
+        logging.info(self.delTime)
         time.sleep(self.delTime)
         self.eraseTable()
 
@@ -534,115 +555,150 @@ class simMethods:
             try:
                 lbTable.submit_transaction(leaderOperation)
             except Exception as e:
-                logging.info(f"ERROR : {e}")
+                logging.error(f"ERROR : {e}")
     
+class ingestMethods:
+    def __init__(self):
+        logging.info('######################################################################################')
+        logging.info('NBA DATA INGEST PIPELINE INITIATED!!!')
+
+    
+    def getGames(self, params):
+        league = params["LEAGUE_ID"]
+        season = params["SEASON"]
+        if league == "nba":
+            lid = "00"
+        elif league == "vegas":
+            lid = "15"
+        gameIDs = []
+        scheduleURL = "http://data.nba.com/data/v2015/json/mobile_teams/" + league + "/" + season + "/league/" + lid +"_full_schedule.json"
+        response = urlopen(scheduleURL)
+        for leagueData in json.loads(response.read())["lscd"]:
+            for gameData in leagueData["mscd"]["g"]:
+                gameIDs.append(gameData["gid"])
+            logging.info(gameIDs)
+        return gameIDs
+
+    def ingestPipeline(self, params, gameID):
+        logging.info(f'USING PARAMETERS : {params}')
+        WRITE_CONNECTION_STRING = params['WRITE_CONNECTION_STRING']
+        leagueID = params['LEAGUE_ID']
+        #gameID = params['GAME_ID']
+        evtID = 0
+        opObj = dataOutput(gameID)
+
+        if params["MODE"] == 0 or params["MODE"] == 2: # LIVE MODE OR ARCHIVAL MODE FOR OLD GAMES
+            logging.info("RUNNING IN LIVE MODE!!")
+            with TableClient.from_connection_string(WRITE_CONNECTION_STRING, table_name="Game") as table:
+                try:
+                    logging.info("FETCHING GAME DETAILS")
+                    gamesFilter = f"PartitionKey eq '{gameID}'"
+                    gameEntity = table.query_entities(query_filter=gamesFilter)
+                    count = 0
+                    for entity in gameEntity:
+                        count += 1
+                        entity.pop("RowKey", None)
+                        entity.pop("PartitionKey", None)
+                        gameDetails = entity
+                    tids = [gameDetails["hid"], gameDetails["vid"]]
+                    hTid = gameDetails["hid"]
+                except:
+                    return (f"Failed to get games data")
+
+            try:
+                with TableClient.from_connection_string(WRITE_CONNECTION_STRING, table_name="Team") as table:
+                    teams = []
+                    teamFilter = f"PartitionKey eq 'nba' and RowKey eq '{hTid}'"
+                    teamEntities = table.query_entities(query_filter=teamFilter)
+                    for teamEntity in teamEntities:
+                        hTeam = teamEntity["ab"]
+                    logging.info(f'HOME TEAM : {hTeam}')
+            except:
+                return (f"Failed to get home team data")
+
+            try:
+                evtCount = 0
+                quarter = 1
+                de = "start period"
+                gameOn = True
+                shots = []
+
+                points = {tids[0]: {}, tids[1]: {}}
+                assists = {tids[0]: {}, tids[1]: {}}
+                blocks = {tids[0]: {}, tids[1]: {}}
+                rebounds = {tids[0]: {}, tids[1]: {}}
+                steals = {tids[0]: {}, tids[1]: {}}
+                logging.info(f'GAME ID : {gameID}')
+                shotInfoObj = shotInfo(gameID, hTeam, params['SHOT_TRAIL_PARAMS'])
+                quarter = 1
+                evtID = 0
+                period = 1
+                de = "start period"
+                numEvts = 0
+                logging.info(de)
+            except:
+                return (f"Failed to get shot leaderboard data")
+            for i in range(0, 2160):
+                try:
+                    gameStatus = "GAMEON = " + str(gameOn)
+                    liObj = liveInfo(gameID, quarter, leagueID, params["MODE"], params["SEASON"])
+                    evtID, period, de = liObj.getData(evtID, de)
+                    logging.info(f"DESCRIPTION : {de}")
+                    #nxtUrl = liObj.nextURL
+
+                    shots, points, assists, blocks, rebounds, steals = shotInfoObj.getEvtData(tids, liObj.events, shots,
+                                                                                              points, assists, blocks,
+                                                                                              rebounds, steals, leagueID, params["SEASON"])
+                    leaders = shotInfoObj.leaderBoard(tids, points, assists, blocks, rebounds, steals, leagueID, params["SEASON"])
+                    printStr = "DESCRIPTION : " + de.lower()
+                    evtIDstr = "EVENT ID = " + str(evtID)
+                    logging.info(printStr)
+                    logging.info(evtIDstr)
+                    json_data = {"shots": shots, "leaderboard": leaders}
+                    lenShots = len(shots)
+                    logging.info(f"LENGTH OF SHOTS = {lenShots}")
+                    if len(shots) > 0:
+                        logging.info("WRITING NOW!!!!!!")
+                        opObj.pub2Queue(json_data, gameID)
+                        evtCount += opObj.writeTable(json_data, WRITE_CONNECTION_STRING, gameID)
+                        logging.info(gameStatus)
+                    if (de.lower() == "end period" and period != 4):
+                        logging.info("CHANGE PERIOD")
+                        quarter += 1
+                    lastEvt = "LAST EVENT = " + str(evtID)
+                    logging.info(lastEvt)
+                    if (period == 4 and de.lower() == "end period"):
+                        gameOn = False
+                        break
+                    time.sleep(1)
+                except Exception as e:
+                    logging.error(f"MAIN METHOD EXCEPTION : {e}")
+                    time.sleep(5)
+                    break
+    
+            opObj.log2File()
+
+            return f'Game Chronicles Data uploaded. No. of Events = {evtCount}'
+    
+        elif params["MODE"] == 1: # SIMULATOR MODE
+            simObj = simMethods(params["SIMULATION_GAME_ID"], params["SIM_PARAMS"], WRITE_CONNECTION_STRING)
+            simObj.streamlineData()
 
 def main():
-    logging.info('######################################################################################')
-    logging.info('NBA DATA INGEST PIPELINE INITIATED!!!')
     params = getParams()
-    logging.info(f'USING PARAMETERS : {params}')
-    WRITE_CONNECTION_STRING = params['WRITE_CONNECTION_STRING']
-    leagueID = params['LEAGUE_ID']
-    gameID = params['GAME_ID']
-    evtID = 0
-    opObj = dataOutput(gameID)
-
-    if params["MODE"] == 0 or params["MODE"] == 2: # LIVE MODE OR ARCHIVAL MODE FOR OLD GAMES
-        logging.info("RUNNING IN LIVE MODE!!")
-        with TableClient.from_connection_string(WRITE_CONNECTION_STRING, table_name="Game") as table:
-            try:
-                logging.info("FETCHING GAME DETAILS")
-                gamesFilter = f"PartitionKey eq '{gameID}'"
-                gameEntity = table.query_entities(query_filter=gamesFilter)
-                count = 0
-                for entity in gameEntity:
-                    count += 1
-                    entity.pop("RowKey", None)
-                    entity.pop("PartitionKey", None)
-                    gameDetails = entity
-                tids = [gameDetails["hid"], gameDetails["vid"]]
-                hTid = gameDetails["hid"]
-            except:
-                return (f"Failed to get games data")
-
-        try:
-            with TableClient.from_connection_string(WRITE_CONNECTION_STRING, table_name="Team") as table:
-                teams = []
-                teamFilter = f"PartitionKey eq 'nba' and RowKey eq '{hTid}'"
-                teamEntities = table.query_entities(query_filter=teamFilter)
-                for teamEntity in teamEntities:
-                    hTeam = teamEntity["ab"]
-                logging.info(f'HOME TEAM : {hTeam}')
-        except:
-            return (f"Failed to get home team data")
-
-        try:
-            evtCount = 0
-            quarter = 1
-            de = "start period"
-            gameOn = True
-            shots = []
-
-            points = {tids[0]: {}, tids[1]: {}}
-            assists = {tids[0]: {}, tids[1]: {}}
-            blocks = {tids[0]: {}, tids[1]: {}}
-            rebounds = {tids[0]: {}, tids[1]: {}}
-            steals = {tids[0]: {}, tids[1]: {}}
-            logging.info(f'GAME ID : {gameID}')
-            shotInfoObj = shotInfo(gameID, hTeam, params['SHOT_TRAIL_PARAMS'])
-            quarter = 1
-            evtID = 0
-            period = 1
-            de = "start period"
-            numEvts = 0
-            logging.info(de)
-        except:
-            return (f"Failed to get shot leaderboard data")
-        for i in range(0, 2160):
-            try:
-                gameStatus = "GAMEON = " + str(gameOn)
-                liObj = liveInfo(gameID, quarter, leagueID, params["MODE"])
-                evtID, period, de = liObj.getData(evtID, de)
-                logging.info(f"DESCRIPTION : {de}")
-                nxtUrl = liObj.nextURL
-
-                shots, points, assists, blocks, rebounds, steals = shotInfoObj.getEvtData(tids, liObj.events, shots,
-                                                                                          points, assists, blocks,
-                                                                                          rebounds, steals, leagueID)
-                leaders = shotInfoObj.leaderBoard(tids, points, assists, blocks, rebounds, steals, leagueID)
-                printStr = "DESCRIPTION : " + de.lower()
-                evtIDstr = "EVENT ID = " + str(evtID)
-                logging.info(printStr)
-                logging.info(evtIDstr)
-                json_data = {"shots": shots, "leaderboard": leaders}
-                lenShots = len(shots)
-                logging.info(f"LENGTH OF SHOTS = {lenShots}")
-                if len(shots) > 0:
-                    logging.info("WRITING NOW!!!!!!")
-                    # pub2Queue(json_data, gameID)
-                    evtCount += opObj.writeTable(json_data, WRITE_CONNECTION_STRING, gameID)
-                    logging.info(gameStatus)
-                if (de.lower() == "end period" and period != 4):
-                    logging.info("CHANGE PERIOD")
-                    quarter += 1
-                lastEvt = "LAST EVENT = " + str(evtID)
-                logging.info(lastEvt)
-                if (period == 4 and de.lower() == "end period"):
-                    gameOn = False
-                    break
-                time.sleep(1)
-            except:
-                time.sleep(5)
-    
-        opObj.log2File()
-
-        return f'Game Chronicles Data uploaded. No. of Events = {evtCount}'
-    
-    elif params["MODE"] == 1: # SIMULATOR MODE
-        simObj = simMethods(params["SIMULATION_GAME_ID"], params["SIM_PARAMS"], WRITE_CONNECTION_STRING)
-        simObj.streamlineData()
-
+    MODE = params["MODE"]
+    imObj = ingestMethods()
+    season = params["SEASON"]
+    league = params["LEAGUE_ID"]
+    if MODE in [0, 1, 2]:
+        imObj.ingestPipeline(params, params["GAME_ID"])
+    elif MODE == 4:
+        logging.info("RUNNING IN ARCHIVAL MODE")
+        logging.info(f"SEASON : {season}, LEAGUE : {league}")
+        params["MODE"] = 2
+        gameIDs = imObj.getGames(params)
+        for gameID in gameIDs:
+            imObj.ingestPipeline(params, gameID)
 
 if __name__ == "__main__":
     main()
