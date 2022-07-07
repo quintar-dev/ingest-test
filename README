@@ -11,7 +11,7 @@ CONFIG PARAMETERS:
     a. Development: "dev"
     b. Staging: "stag"
     c. Production: "prod"
-4. SIMULATION_GAME_ID: Pick a game ID for simulation from the games with logs available in https://nbadatalakedev.blob.core.windows.net/nba/sport-data/games/
+4. SIMULATION_GAME_ID: Pick a game ID for simulation from the games with logs available in https://nbadatalakedev.blob.core.windows.net/nba/sport-data/games/valid_gameIDs.txt
 5. SHOT_TRAIL_PARAMS: (FOR LIVE GAME ONLY)
 6. SIM_PARAMS:
     a. speed: Speed of simulation
