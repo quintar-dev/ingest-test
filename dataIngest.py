@@ -377,7 +377,7 @@ class dataOutput:
                     for i in range(0, len(operations), 100):
                         operation = list(operations[i:i + 100])
                         lastTask = operation[-1]
-                        #table.submit_transaction(operation)
+                        table.submit_transaction(operation)
                     logging.info("SUBMIT TRANSACTION PASSED")
                 except Exception as e:
                     logging.info("SUBMIT TRANSACTION FAILED")
@@ -401,8 +401,8 @@ class dataOutput:
                         with TableClient.from_connection_string(connection_string, table_name="LeaderBoard") as table:
                             try:
                                 # add new entity if it does not exist. update if the entity exists
-                                #createdEntity = table.upsert_entity(mode=UpdateMode.MERGE, entity=leader)
-                                #logging.debug(createdEntity)
+                                createdEntity = table.upsert_entity(mode=UpdateMode.MERGE, entity=leader)
+                                logging.debug(createdEntity)
                                 # Return http response
                                 updateStatus = 1
                             except HttpResponseError:
