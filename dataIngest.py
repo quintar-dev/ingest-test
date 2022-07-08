@@ -162,15 +162,24 @@ class shotInfo:  ## Get SHOTS, SCORING
             self.z_pts[i] = round(self.z_pts[i], 2)
 
     def getTrace(self, pid, leagueID, season):
+        if leagueID.lower() == "vegas":
+            lid = "15"
+        elif leagueID.lower() == "nba":
+            lid = "00"
         try:
-            pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/" + season + "/players/playercard_" + str(pid) + "_02.json"
-            logging.info(pc_url)
-            response = urlopen(pc_url)
-            playerData = json.loads(response.read())
+            playerURL = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID.lower() + "/" + str(season) + "/players/" + lid + "_player_info.json"
+            playerInfo = urlopen(playerURL)
+            
+            playersData = json.loads(playerInfo.read())["pls"]["pl"]
+            for player in playersData:
+                if player["pid"] == pid:
+                    plHT = player["ht"]
         
             offset = self.shotTrailParams['startHeightOffset']
-            height = (int(playerData["pl"]["ht"].split("-")[0]) * 10) + math.floor(
-                (float(playerData["pl"]["ht"].split("-")[1]) / 12) * 10) + offset
+            height = (int(plHT.split("-")[0]) * 10) + math.floor(
+                (float(plHT.split("-")[1]) / 12) * 10) + offset
+            
+            #height = 25
 
             if self.st == "ft":
                 p1 = (0, self.pen, height)
@@ -291,6 +300,12 @@ class shotInfo:  ## Get SHOTS, SCORING
     def leaderBoard(self, tids, points, assists, blocks, rebounds, steals, leagueID, season):
         leaderboardData = []
         cats = ["PTS", "AST", "BLK", "REB", "STL"]
+        
+        if leagueID == "vegas":
+            lid = "15"
+        elif leagueID == "nba":
+            lid = "00"
+        
         for tid in tids:
             teamLeaders = []
             points[tid].pop(0, None)
@@ -304,14 +319,22 @@ class shotInfo:  ## Get SHOTS, SCORING
                     pid = max(inArr[i], key=inArr[i].get)
                     scr = int(inArr[i][max(inArr[i], key=inArr[i].get)])
                     pidStr = str(pid)
-                    pc_url = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID + "/" + season +"/players/playercard_" + pidStr + "_02.json"
-                    # logging.info(pc_url)
-                    response = urlopen(pc_url)
-                    playerData = json.loads(response.read())
+                    try:
+                        playerURL = "http://data.nba.com/data/10s/v2015/json/mobile_teams/" + leagueID.lower() + "/" + str(season) + "/players/" + lid + "_player_info.json"
+                        playerInfo = urlopen(playerURL)
+                        logging.info(playerInfo)
+                        playersData = json.loads(playerInfo.read())["pls"]["pl"]
+                        for player in playersData:
+                            if player["pid"] == pid:
+                                playerFN = player["fn"]
+                                playerSN = player["ln"]
+                    except:
+                        playerFN = "First"
+                        playerSN = "Last"
                     # playerData = {"pl": {"ln": "Parsons", "fn": "Jim"}}
                     pl_hs = "https://ak-static.cms.nba.com/wp-content/uploads/headshots/nba/latest/260x190/" + str(
                         pid) + ".png"
-                    leader = {"cat": cats[i], "fn": playerData["pl"]["fn"], "sn": playerData["pl"]["ln"],
+                    leader = {"cat": cats[i], "fn": playerFN, "sn": playerSN,
                               "pid": int(pid), "scr": scr, "hs": pl_hs}
                 else:
                     pid = 0
@@ -676,7 +699,7 @@ class ingestMethods:
                     time.sleep(5)
                     break
     
-            opObj.log2File()
+            #opObj.log2File()
 
             return f'Game Chronicles Data uploaded. No. of Events = {evtCount}'
     
