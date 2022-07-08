@@ -699,7 +699,7 @@ class ingestMethods:
                     time.sleep(5)
                     break
     
-            #opObj.log2File()
+            opObj.log2File()
 
             return f'Game Chronicles Data uploaded. No. of Events = {evtCount}'
     

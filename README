@@ -23,6 +23,7 @@ CONFIG PARAMETERS:
     a. 0: Live game data ingest
     b. 1: Simulate a game with available logs
     c. 2: generate logs for old games
+    d. 4: Archive season long data
 
 
 Usage:
