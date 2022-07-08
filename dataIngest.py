@@ -698,8 +698,8 @@ class ingestMethods:
                     logging.error(f"MAIN METHOD EXCEPTION : {e}")
                     time.sleep(5)
                     break
-    
-            opObj.log2File()
+            if params["MODE"] == 2:
+                opObj.log2File()
 
             return f'Game Chronicles Data uploaded. No. of Events = {evtCount}'
     
