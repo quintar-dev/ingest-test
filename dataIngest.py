@@ -514,25 +514,24 @@ class simMethods:
             prevTime = timeSecs
         self.timeDiffs = timeRemaining
         self.timeDF = pd.DataFrame(timeRemaining, columns=['tr'])
-    
-    def createTable(self):
-        with TableClient.from_connection_string(self.connection_string, table_name="simGameChronicle") as table:
-            table.create_table()
-        with TableClient.from_connection_string(self.connection_string, table_name="simLeaderBoard") as table:
-            table.create_table()       
-    
-    def eraseTable(self):
-        with TableClient.from_connection_string(self.connection_string, table_name="simGameChronicle") as table:
-            table.delete_table()
-        with TableClient.from_connection_string(self.connection_string, table_name="simLeaderBoard") as table:
-            table.delete_table()
+        
+    def delEntries(self, tableName):
+        gameID = "9876543210"
+        qFilter = f"PartitionKey eq '{gameID}'"
+        with TableClient.from_connection_string(self.connection_string, table_name=tableName) as table:
+            tableEntities = table.query_entities(query_filter=qFilter)
+            for entity in tableEntities:
+                logging.info(f"ENTITY : {entity}")
+                PartitionKey = str(entity["PartitionKey"])
+                RowKey = str(entity["RowKey"])
+                table.delete_entity(PartitionKey, RowKey)
     
     def streamlineData(self):
         self.getDeltas()
         shots = self.shotsDF.to_dict("records")
-        self.eraseTable()
-        time.sleep(30)
-        self.createTable()   
+        tables = ["simGameChronicle", "simLeaderBoard"]
+        for tableName in tables:
+            self.delEntries(tableName)
         
         for pos in range(0, len(self.shotsDF)):
             gameData = shots[pos]
@@ -544,7 +543,7 @@ class simMethods:
         logging.info(self.delTime)
         time.sleep(self.delTime)
         self.eraseTable()
-
+            
     
     def writeTable(self, gameData):
         shot = gameData
@@ -705,7 +704,8 @@ class ingestMethods:
     
         elif params["MODE"] == 1: # SIMULATOR MODE
             simObj = simMethods(params["SIMULATION_GAME_ID"], params["SIM_PARAMS"], WRITE_CONNECTION_STRING)
-            simObj.streamlineData()
+            for i in range(0, params["SIM_PARAMS"]["REPEAT"]):
+                simObj.streamlineData()
 
 def main():
     params = getParams()
