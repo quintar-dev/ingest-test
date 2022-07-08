@@ -540,9 +540,9 @@ class simMethods:
             logging.debug(f'TIME DELTA : {timeDelta}')
             time.sleep(timeDelta)
 
-        logging.info(self.delTime)
-        time.sleep(self.delTime)
-        self.eraseTable()
+        #logging.info(self.delTime)
+        #time.sleep(self.delTime)
+        #self.eraseTable()
             
     
     def writeTable(self, gameData):
