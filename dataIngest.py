@@ -34,12 +34,15 @@ STAG_CONNECTION = "DefaultEndpointsProtocol=https;AccountName=nbadatalakestag;Ac
 PROD_CONNECTION = "DefaultEndpointsProtocol=https;AccountName=nbadatalakeprod;AccountKey=bdrJN2qPorn3BLaog07RQM++Gxw46ZZc9SzGSMc5QYSpxYvJ4v3HpBS5OhT2OWYtpoK5Bs12Q3iL+AStggiIbA==;EndpointSuffix=core.windows.net"
 
 CONTAINER_NAME = "nba"
-JSON_FILE_PATH = "nba_sdk/nbaIngestParams.json"
+
+JSON_FILE_PATH = "nba_sdk/nbaIngestParams_" + sys.argv[1].lower() + ".json"
+
 LOG_PATH = "sport-data/games/"
 
+CFG_CONNECTION = DEV_CONNECTION
 
 def getParams():    
-    blob_service_client = BlobServiceClient.from_connection_string(DEV_CONNECTION)
+    blob_service_client = BlobServiceClient.from_connection_string(CFG_CONNECTION)
     container_client = blob_service_client.get_container_client(CONTAINER_NAME)
     file_client = container_client.get_blob_client(JSON_FILE_PATH)
     streamdownloader = file_client.download_blob()
@@ -456,7 +459,6 @@ class dataOutput:
         except Exception as e:
             logging.error(f"EXCEPTION IN PUBLISH : {e}")
             
-
 class simMethods:
     def __init__(self, GAME_ID, SIM_PARAMS, WRITE_CONNECTION_STRING):
         logging.info("RUNNING IN SIMULATOR MODE")
@@ -683,6 +685,7 @@ class ingestMethods:
                         logging.info("WRITING NOW!!!!!!")
                         opObj.pub2Queue(json_data, gameID)
                         evtCount += opObj.writeTable(json_data, WRITE_CONNECTION_STRING, gameID)
+                        #evtCount += opObj.writeTable(json_data, CFG_CONNECTION, gameID)
                         logging.info(gameStatus)
                     if (de.lower() == "end period" and period != 4):
                         logging.info("CHANGE PERIOD")
@@ -690,6 +693,7 @@ class ingestMethods:
                     lastEvt = "LAST EVENT = " + str(evtID)
                     logging.info(lastEvt)
                     if (period == 4 and de.lower() == "end period"):
+                        #logging.info(json_data["shots"][-1]["de"])
                         gameOn = False
                         break
                     time.sleep(1)
