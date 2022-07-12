@@ -17,7 +17,7 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "START")){
-                    sh chmod +x docker.sh
+                    sh "chmod +x docker.sh"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
@@ -40,8 +40,8 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    sh chmod +x docker.sh
-                    sh docker.sh dock
+                    sh "chmod +x docker.sh"
+                    sh "docker.sh dock"
                     def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
@@ -63,8 +63,8 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "STOP")){
-                    sh chmod +x docker.sh
-                    sh docker.sh dock_check
+                    sh "chmod +x docker.sh"
+                    sh "docker.sh dock"
                     def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
