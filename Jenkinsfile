@@ -17,10 +17,12 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "START")){
+                    sh chmod +x docker.sh
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
+                    sh docker.sh dock_check
                     docker build -t devops .
                     docker run --name Quintar -d -p 1234:80 devops:latest
                     docker ps -a
@@ -38,7 +40,9 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                   
+                    sh chmod +x docker.sh
+                    sh docker.sh dock
+                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
@@ -59,11 +63,14 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "STOP")){
-                   
+                    sh chmod +x docker.sh
+                    sh docker.sh dock_check
+                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
+                    
                     docker stop Quintar
                     docker rm -vf Quintar
                     docker rmi -f devops:latest
