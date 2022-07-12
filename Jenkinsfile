@@ -41,13 +41,13 @@ pipeline{
                     script{
                     if ((params.Actions == "RESTART")){
                     sh "chmod +x docker.sh"
-                    sh "docker.sh dock"
+                    sh "./docker.sh dock"
                     def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
-                    docker restart Quintar
+                    docker restart $container_id
                     docker ps -a
                     """
                     }
@@ -64,16 +64,17 @@ pipeline{
                     script{
                     if ((params.Actions == "STOP")){
                     sh "chmod +x docker.sh"
-                    sh "docker.sh dock"
+                    sh "./docker.sh dock"
                     def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     
-                    docker stop Quintar
-                    docker rm -vf Quintar
+                    docker stop $container_id
+                    docker rm -vf $container_id
                     docker rmi -f devops:latest
+                    docker ps -a
                     """
                     }
                     }
