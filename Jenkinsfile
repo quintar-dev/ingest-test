@@ -1,6 +1,6 @@
 pipeline{
     agent{
-        label "master"
+        label "macos_12.0.1"
     }
     options {
       timeout(time: 4, unit: 'HOURS') 
@@ -38,13 +38,14 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    def container_id = sh docker ps -aqf "name=Quintar"
+                    def container_id = sh("docker ps -aqf "name=Quintar"", returnStdout: true).trim()
+
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
-                    docker restart Quintar
+                    docker restart $container_id
                     docker ps -a
                     """
                     }
@@ -66,9 +67,8 @@ pipeline{
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
-                    docker stop Quintar
-                    docker rm -vf Quintar
-                    docker rmi -f devops:latest
+                    docker stop $container_id
+                    
                     """
                     }
                     }
