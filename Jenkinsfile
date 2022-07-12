@@ -44,7 +44,6 @@ pipeline{
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
-                    security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
                     docker restart $container_id
                     docker ps -a
                     """
@@ -61,14 +60,14 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "STOP")){
-                    def container_id = sh docker ps -aqf "name=Quintar"
+                    def container_id = sh("docker ps -aqf name=Quintar")
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
-                    security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
                     docker stop $container_id
-                    
+                    docker rm $container_id
+                    docker rmi devops:latest
                     """
                     }
                     }
