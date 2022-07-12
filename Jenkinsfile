@@ -38,7 +38,8 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    def container_id = sh(script: "docker container ls  | grep 'devops' | awk '{print $1}'", returnStdout: true).trim()
+                    sh("docker ps -aqf name=Quintar | cat > id  ", returnStdout: true)
+                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
@@ -59,7 +60,7 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "STOP")){
-                    sh("docker ps -aqf name=Quintar > id ", returnStdout: true)
+                    sh("docker ps -aqf name=Quintar | cat > id  ", returnStdout: true)
                     def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
