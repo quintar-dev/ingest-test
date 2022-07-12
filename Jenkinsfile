@@ -67,8 +67,8 @@ pipeline{
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
                     docker stop $container_id
-                    docker rm -vf $(docker ps -aq)
-                    docker rmi -f $(docker images -aq)
+                    docker rm -vf $container_id
+                    docker rmi -f devops:latest
                     """
                     }
                     }
