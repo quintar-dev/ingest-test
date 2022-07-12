@@ -38,7 +38,7 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    def container_id = sh("docker ps -aqf "name=Quintar"", returnStdout: true).trim()
+                    def container_id = sh("docker ps -aqf 'name=Quintar'", returnStdout: true).trim()
 
                     sh """
                     #!/bin/zsh -l
