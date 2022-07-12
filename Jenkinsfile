@@ -38,8 +38,7 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    sh("docker ps -aqf name=Quintar > id ", returnStdout: true)
-                    def container_id = readFile "${env.WORKSPACE}/id"
+                    def container_id = sh(script: "docker container ls  | grep 'devops' | awk '{print $1}'", returnStdout: true).trim()
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
