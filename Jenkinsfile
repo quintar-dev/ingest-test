@@ -44,7 +44,7 @@ pipeline{
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
-                    docker restart $container_id
+                    docker restart Quintar
                     docker ps -a
                     """
                     }
@@ -66,8 +66,8 @@ pipeline{
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     security unlock-keychain -p '$password' /Users/ec2-user/Library/Keychains/login.keychain-db
-                    docker stop $container_id
-                    docker rm -vf $container_id
+                    docker stop Quintar
+                    docker rm -vf Quintar
                     docker rmi -f devops:latest
                     """
                     }
