@@ -2,7 +2,7 @@
 
 dock()
 {
-Container_Name="cicd"
+Container_Name="Quintar"
 Image_Name="devops:latest"
 docker ps -aqf name=$Container_Name > id
 Container_ID=$(cat id)
