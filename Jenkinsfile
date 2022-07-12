@@ -38,8 +38,8 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    def container_id = sh("docker ps -aqf name=Quintar")
-
+                    sh("docker ps -aqf name=Quintar > id ", returnStdout: true)
+                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
@@ -60,14 +60,15 @@ pipeline{
                 {
                     script{
                     if ((params.Actions == "STOP")){
-                    def container_id = sh("docker ps -aqf name=Quintar")
+                    sh("docker ps -aqf name=Quintar > id ", returnStdout: true)
+                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
                     #!/bin/zsh -l
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     docker stop $container_id
-                    docker rm $container_id
-                    docker rmi devops:latest
+                    docker rm -vf $container_id)
+                    docker rmi -f devops:latest
                     """
                     }
                     }
