@@ -1,6 +1,6 @@
 pipeline{
     agent{
-        label "macos_12.0.1"
+        label "master"
     }
     options {
       timeout(time: 4, unit: 'HOURS') 
