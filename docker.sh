@@ -51,6 +51,7 @@ dock_restart()
     Container_ID=$(cat id)
     
     docker restart $Container_ID
+    docker ps -a
 }
 
 dock_stop()
