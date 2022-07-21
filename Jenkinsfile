@@ -51,6 +51,7 @@ pipeline{
                     pwd
                     chmod +x docker.sh
                     sh docker.sh dock_restart
+                    docker ps -a
                     exit 0
                     << EOF
                     """
