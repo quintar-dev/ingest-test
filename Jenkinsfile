@@ -13,21 +13,20 @@ pipeline{
         stage("Start the Live Simulator")
         { 
             steps{
-                withCredentials([string(credentialsId: '1007eb3d-4346-4876-b20a-ecccd1a9a19e', variable: 'password')]) 
+                withCredentials([usernamePassword(credentialsId: '433bb1b2-dcc5-44d8-9982-d00a44dafd02', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) 
                 {
                     script{
                     if ((params.Actions == "START")){
-                    sh "chmod +x docker.sh"
                     sh """
-                    #!/bin/zsh -l
-                    export LANG=en_US.UTF-8
-                    export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
-                    sh docker.sh dock_check
-                    docker build -t devops .
-                    docker run --name Quintar -d -p 1234:80 devops:latest
-                    docker ps -a
+                    #!/bin/bash
                     
+                    sshpass -p '$PASSWORD' ssh  $USERNAME@20.127.55.95<< EOF
+                    pwd
+                    whoami
+                    exit 0
+                    << EOF
                     """
+                    
                     }
                     }
                 }               
@@ -71,10 +70,7 @@ pipeline{
                     export LANG=en_US.UTF-8
                     export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
                     
-                    docker stop $container_id
-                    docker rm -vf $container_id
-                    docker rmi -f devops:latest
-                    docker ps -a
+                   
                     """
                     }
                     }
