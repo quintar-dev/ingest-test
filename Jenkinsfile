@@ -22,7 +22,7 @@ pipeline{
        
                     sshpass -p '$PASSWORD' ssh -o StrictHostKeyChecking=no $USERNAME@20.127.55.95 /bin/bash << EOF
                     cd /home/
-                    rm -rvf ingest-test/
+                    rm -rf ingest-test/
                     git clone -b ${BRANCH_NAME} git@github.com:quintar-dev/ingest-test.git
                     cd /home/ingest-test/
                     pwd
