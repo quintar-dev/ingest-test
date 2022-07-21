@@ -19,10 +19,14 @@ pipeline{
                     if ((params.Actions == "START")){
                     sh """
                     #!/bin/bash
-                    
+                                      
                     sshpass -p '$PASSWORD' ssh -o StrictHostKeyChecking=no $USERNAME@20.127.55.95 /bin/bash << EOF
+                    cd /home/ingest-test/
                     pwd
-                    whoami
+                    git pull
+                    chmod +x docker.sh
+                    sh docker.sh dock_check
+                    sh docker.sh dock_start
                     exit 0
                     << EOF
                     """
@@ -35,19 +39,20 @@ pipeline{
          stage("Restart the Live Simulator")
         { 
             steps{
-                withCredentials([string(credentialsId: '1007eb3d-4346-4876-b20a-ecccd1a9a19e', variable: 'password')]) 
+                withCredentials([usernamePassword(credentialsId: '433bb1b2-dcc5-44d8-9982-d00a44dafd02', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) 
                 {
                     script{
                     if ((params.Actions == "RESTART")){
-                    sh "chmod +x docker.sh"
-                    sh "./docker.sh dock"
-                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
-                    #!/bin/zsh -l
-                    export LANG=en_US.UTF-8
-                    export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
-                    docker restart $container_id
-                    docker ps -a
+                    #!/bin/bash
+                    
+                    sshpass -p '$PASSWORD' ssh -o StrictHostKeyChecking=no $USERNAME@20.127.55.95 /bin/bash << EOF
+                    cd /home/ingest-test/
+                    pwd
+                    chmod +x docker.sh
+                    sh docker.sh dock_restart
+                    exit 0
+                    << EOF
                     """
                     }
                     }
@@ -58,19 +63,20 @@ pipeline{
            stage("Stop the Live Simulator")
         { 
             steps{
-                withCredentials([string(credentialsId: '1007eb3d-4346-4876-b20a-ecccd1a9a19e', variable: 'password')]) 
+                withCredentials([usernamePassword(credentialsId: '433bb1b2-dcc5-44d8-9982-d00a44dafd02', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) 
                 {
                     script{
                     if ((params.Actions == "STOP")){
-                    sh "chmod +x docker.sh"
-                    sh "./docker.sh dock"
-                    def container_id = readFile "${env.WORKSPACE}/id"
                     sh """
-                    #!/bin/zsh -l
-                    export LANG=en_US.UTF-8
-                    export PATH=$PATH:/usr/local/bin:$HOME/.rbenv/bin:$HOME/.rbenv/shims
+                    #!/bin/bash
                     
-                   
+                    sshpass -p '$PASSWORD' ssh -o StrictHostKeyChecking=no $USERNAME@20.127.55.95 /bin/bash << EOF
+                    cd /home/ingest-test/
+                    pwd
+                    chmod +x docker.sh
+                    sh docker.sh dock_stop
+                    exit 0
+                    << EOF
                     """
                     }
                     }
