@@ -20,7 +20,7 @@ pipeline{
                     sh """
                     #!/bin/bash
                     
-                    sshpass -p '$PASSWORD' ssh  $USERNAME@20.127.55.95 /bin/bash << EOF
+                    sshpass -p '$PASSWORD' ssh -o StrictHostKeyChecking=no $USERNAME@20.127.55.95 /bin/bash << EOF
                     pwd
                     whoami
                     exit 0
